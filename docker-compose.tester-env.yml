@@ -1,0 +1,23 @@
+services:
+  yacy:
+    build:
+      context: .
+      dockerfile: Dockerfile.tester-env
+    image: ${IMAGE_TAG:-tester-env-yacy:dev}
+    ports:
+      - "${YACY_PORT:-18090}:8090"
+    volumes:
+      - yacy-data:/opt/yacy_search_server/DATA
+    networks:
+      - local
+
+volumes:
+  yacy-data:
+
+networks:
+  local:
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config:
+        - subnet: 10.253.90.0/24

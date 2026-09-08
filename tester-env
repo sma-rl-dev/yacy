@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+IMAGE_NAME="${IMAGE_TAG:-tester-env-yacy:dev}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+suffix="${RUN_ID:+-$RUN_ID}"
+PROJECT="tester-env-yacy${suffix}"
+PORT="${YACY_PORT:-18090}"
+COMPOSE=(docker compose -p "$PROJECT" -f "$(dirname "$0")/docker-compose.tester-env.yml")
+
+usage() {
+  cat <<'EOF'
+Usage: ./tester-env {deploy|seed|verify|reset|stop|status|logs|help}
+
+Environment: IMAGE_TAG (default tester-env-yacy:dev), RUN_ID, YACY_PORT (default 18090).
+Credentials: admin / yacy. The app uses YaCy's intranet profile; its Docker network has outbound NAT disabled.
+EOF
+}
+
+deploy() {
+  IMAGE_TAG="$IMAGE_NAME" YACY_PORT="$PORT" "${COMPOSE[@]}" up --build -d
+  for _ in {1..90}; do
+    if curl --fail --silent --output /dev/null "http://localhost:$PORT/"; then
+      printf '==> YaCy ready at http://localhost:%s/\n' "$PORT"
+      return
+    fi
+    sleep 2
+  done
+  "${COMPOSE[@]}" logs
+  return 1
+}
+
+seed() {
+  local fixture url response
+  for fixture in "$SCRIPT_DIR"/tester-env-seed/*.html; do
+    url="http://catalog.tester-env.local/${fixture##*/}"
+    response="$(curl --fail --silent --show-error --digest --user admin:yacy \
+      --form 'count=1' --form 'synchronous=true' --form 'commit=true' \
+      --form "url-0=$url" --form "data-0=@$fixture;type=text/html" \
+      --form 'responseHeader-0=Last-Modified:Mon, 15 Jan 2024 09:00:00 GMT' \
+      --form 'responseHeader-0=Content-Type:text/html' \
+      "http://localhost:$PORT/api/push_p.json")"
+    case "$response" in *'"successall": "true"'*) ;; *) printf '%s\n' "$response" >&2; return 1 ;; esac
+  done
+  printf '==> Seeded 3 local catalog documents\n'
+}
+
+verify() {
+  local page attempt
+  for attempt in {1..10}; do
+    page="$(curl --fail --silent --show-error --get \
+      --data-urlencode 'query=harbor' --data-urlencode 'resource=local' \
+      "http://localhost:$PORT/yacysearch.html")"
+    if [[ "$page" == *'Harbor Procurement Handbook'* && "$page" == *'Quarterly Supply Review'* && "$page" == *'Warehouse Safety Checklist'* ]]; then
+      printf '==> Verified 3 visible local search results\n'; return
+    fi
+    sleep 1
+  done
+  printf 'Missing local Harbor search results after indexing\n' >&2
+  return 1
+}
+
+case "${1:-help}" in
+  deploy) deploy ;;
+  seed) seed ;;
+  verify) verify ;;
+  reset) "${COMPOSE[@]}" down -v ;;
+  stop) "${COMPOSE[@]}" stop ;;
+  status) "${COMPOSE[@]}" ps ;;
+  logs) "${COMPOSE[@]}" logs -f ;;
+  help|-h|--help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac
