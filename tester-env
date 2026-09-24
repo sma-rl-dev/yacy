@@ -42,7 +42,7 @@ seed() {
       "http://localhost:$PORT/api/push_p.json")"
     case "$response" in *'"successall": "true"'*) ;; *) printf '%s\n' "$response" >&2; return 1 ;; esac
   done
-  printf '==> Seeded 3 local catalog documents\n'
+  printf '==> Seeded 4 local catalog documents\n'
 }
 
 verify() {
@@ -51,8 +51,8 @@ verify() {
     page="$(curl --fail --silent --show-error --get \
       --data-urlencode 'query=harbor' --data-urlencode 'resource=local' \
       "http://localhost:$PORT/yacysearch.html")"
-    if [[ "$page" == *'Harbor Procurement Handbook'* && "$page" == *'Quarterly Supply Review'* && "$page" == *'Warehouse Safety Checklist'* ]]; then
-      printf '==> Verified 3 visible local search results\n'; return
+    if [[ "$page" == *'Harbor Procurement Handbook'* && "$page" == *'Quarterly Supply Review'* && "$page" == *'Warehouse Safety Checklist'* && "$page" == *'Harbor Dock Scheduling Bulletin'* ]]; then
+      printf '==> Verified 4 visible local search results\n'; return
     fi
     sleep 1
   done
