@@ -18,6 +18,5 @@ networks:
   local:
     driver_opts:
       com.docker.network.bridge.enable_ip_masquerade: "false"
-    ipam:
-      config:
-        - subnet: 10.253.90.0/24
+    # The subnet is allocated from Docker's address pool per compose project so
+    # concurrent runs get distinct ranges; a fixed /24 made two runs collide.

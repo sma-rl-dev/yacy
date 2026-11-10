@@ -5,14 +5,16 @@ IMAGE_NAME="${IMAGE_TAG:-tester-env-yacy:dev}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 suffix="${RUN_ID:+-$RUN_ID}"
 PROJECT="tester-env-yacy${suffix}"
-PORT="${YACY_PORT:-18090}"
+# PORT is set by scripts/rl-env to the allocated host port; manual runs keep
+# YACY_PORT (default 18090).
+PORT="${PORT:-${YACY_PORT:-18090}}"
 COMPOSE=(docker compose -p "$PROJECT" -f "$(dirname "$0")/docker-compose.tester-env.yml")
 
 usage() {
   cat <<'EOF'
 Usage: ./tester-env {deploy|seed|verify|reset|stop|status|logs|help}
 
-Environment: IMAGE_TAG (default tester-env-yacy:dev), RUN_ID, YACY_PORT (default 18090).
+Environment: IMAGE_TAG (default tester-env-yacy:dev), RUN_ID, PORT (or YACY_PORT, default 18090).
 Credentials: admin / yacy. The app uses YaCy's intranet profile; its Docker network has outbound NAT disabled.
 EOF
 }
